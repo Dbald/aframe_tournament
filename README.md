@@ -34,8 +34,3 @@ This project is currently in the very early stages of development. The initial s
 - **Enemy Physics:** Enemies interact with the environment using physics.
 - **Environment Physics:** The floor and other static elements use physics for collision detection.
 
-## How to Run
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/aframe-tournament.git
