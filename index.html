@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>A-Frame FPS</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="/aframe-super-shooter-kit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+</head>
+<body>
+    <a-scene physics="debug: true">
+        <a-entity id="player" camera wasd-controls look-controls="pointerLockEnabled: true" position="0 2 0">
+            <a-entity cursor="fuse: true; fuseTimeout: 500"
+                      position="0 0 -1"
+                      geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
+                      material="color: black; shader: flat">
+            </a-entity>
+            <a-entity dynamic-body="mass: 2; shape: hull" jump geometry="primitive: box" material="color: red"></a-entity>
+            <a-entity id="weapon" shooter click-to-shoot position="0.141 -0.132 -1.16" geometry="primitive: box; width: 0.1; height: 0.1; depth: 0.4" material="color: black"></a-entity>
+        </a-entity>
+
+        <a-entity id="bulletTemplate" bullet="speed: 100.0" geometry="primitive: sphere; radius: 0.05" material="color: orange" visible="false"></a-entity>
+        <a-entity id="enemy1" class="target" target="healthPoints: 10; static: false" geometry="primitive: box" position="0 1 -5" material="color: red" hit-handler enemy-ai></a-entity>
+        <a-entity id="enemy2" class="target" target="healthPoints: 10; static: false" geometry="primitive: box" position="5 1 -3" material="color: blue" hit-handler enemy-ai></a-entity>
+        <a-entity id="enemy3" class="target" target="healthPoints: 10; static: false" geometry="primitive: box" material="color: teal" position="-5 2 -4" hit-handler enemy-ai></a-entity>
+        
+        <a-sky color="#ECECEC"></a-sky>
+        <a-plane rotation="-90 0 0" width="10" height="10" color="#7BC8A4" static-body></a-plane>
+    </a-scene>
+
+    <script>
+        AFRAME.registerComponent('click-to-shoot', {
+            init: function () {
+                document.body.addEventListener('mousedown', () => { this.el.emit('shoot'); });
+            }
+        });
+
+        AFRAME.registerComponent('hit-handler', {
+            dependencies: ['material'],
+            init: function () {
+                var color;
+                var el = this.el;
+
+                // Initialize health points
+                el.healthPoints = el.getAttribute('target').healthPoints;
+
+                color = new THREE.Color();
+                color.set('#666');
+                el.components.material.material.color.copy(color);
+                el.addEventListener('hit', () => {
+                    console.log(`${el.id} got hit`);
+                    el.healthPoints -= 1;
+                    if (el.healthPoints <= 0) {
+                        el.emit('die');
+                    } else {
+                        color.addScalar(0.05);
+                        el.components.material.material.color.copy(color);
+                    }
+                });
+
+                el.addEventListener('die', () => {
+                    console.log(`${el.id} died`);
+                    color.setRGB(1, 0, 0);
+                    el.components.material.material.color.copy(color);
+                    el.alive = false; // Mark the enemy as dead
+                });
+
+                el.alive = true; // Initially, the enemy is alive
+            }
+        });
+
+        AFRAME.registerComponent('enemy-ai', {
+            schema: {
+                speed: { type: 'number', default: 0.03 }
+            },
+            tick: function () {
+                if (!this.el.alive) return; // Skip movement if the enemy is dead
+
+                const player = document.querySelector('#player');
+                const playerPos = player.getAttribute('position');
+                const enemyPos = this.el.getAttribute('position');
+                const direction = new THREE.Vector3().subVectors(playerPos, enemyPos).normalize();
+                enemyPos.add(direction.multiplyScalar(this.data.speed));
+                this.el.object3D.position.copy(enemyPos);
+            }
+        });
+
+        AFRAME.registerComponent('jump', {
+            init: function () {
+                const el = this.el;
+                const impulse = new CANNON.Vec3(0, 10, 0);
+                const worldPoint = new CANNON.Vec3(0, 0, 0);
+                el.addEventListener('body-loaded', () => {
+                    window.addEventListener('keydown', function (event) {
+                        if (event.code === 'Space') {
+                            console.log('Jump!');
+                            el.body.applyImpulse(impulse, worldPoint);
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>
